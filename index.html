@@ -2,46 +2,82 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="p-4 bg-gray-100">
-  <h1 class="text-2xl font-bold mb-4">Budget Tracker</h1>
+<body class="bg-gray-100 min-h-screen">
+  <div class="max-w-lg mx-auto p-4">
 
-  <div id="auth" class="flex flex-col gap-2">
-    <input id="email" placeholder="Email" class="p-2 border rounded">
-    <input id="password" type="password" placeholder="Password" class="p-2 border rounded">
-    <button id="loginBtn" class="p-2 bg-blue-600 text-white rounded">Login / Signup</button>
-  </div>
+    <h1 class="text-3xl font-bold text-teal-700 mb-4">Budget Tracker</h1>
 
-  <div id="app" class="hidden">
-    <div class="mb-4">
-      <input id="amount" type="number" placeholder="Amount" class="p-2 border rounded w-full mb-2">
-      <input id="note" placeholder="Note" class="p-2 border rounded w-full mb-2">
-      <select id="type" class="p-2 border rounded w-full mb-2">
-        <option value="income">Income</option>
-        <option value="expense">Expense</option>
-      </select>
-      <button id="addBtn" class="p-2 bg-green-600 text-white rounded w-full">Add</button>
+    <!-- AUTH SECTION -->
+    <div id="auth" class="flex flex-col gap-3">
+      <input id="email" placeholder="Email" class="p-3 border rounded-lg">
+      <input id="password" type="password" placeholder="Password" class="p-3 border rounded-lg">
+      <button id="loginBtn" class="p-3 bg-blue-600 text-white rounded-lg font-semibold">
+        Login / Signup
+      </button>
     </div>
 
-    <h2 class="text-xl font-semibold mb-2">Entries</h2>
-    <div id="list"></div>
+    <!-- MAIN APP -->
+    <div id="app" class="hidden">
+
+      <!-- BALANCE CARD -->
+      <div class="bg-white shadow-md rounded-xl p-5 mb-5">
+        <h2 class="text-gray-600 font-semibold">Balance</h2>
+        <p id="balance" class="text-3xl font-bold text-teal-600 mt-2">$0.00</p>
+      </div>
+
+      <!-- INPUT CARD -->
+      <div class="bg-white shadow-md rounded-xl p-5 mb-5">
+        <h2 class="text-xl font-semibold text-gray-700 mb-3">Add Transaction</h2>
+
+        <input id="amount" type="number" placeholder="Amount"
+               class="p-3 border rounded-lg w-full mb-3">
+
+        <input id="note" placeholder="Note (e.g. 'Groceries')"
+               class="p-3 border rounded-lg w-full mb-3">
+
+        <!-- CATEGORY -->
+        <select id="category" class="p-3 border rounded-lg w-full mb-3">
+          <option value="Food">Food</option>
+          <option value="Bills">Bills</option>
+          <option value="Shopping">Shopping</option>
+          <option value="Transportation">Transportation</option>
+          <option value="Fun">Fun</option>
+          <option value="Other">Other</option>
+        </select>
+
+        <!-- TYPE -->
+        <select id="type" class="p-3 border rounded-lg w-full mb-3">
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+        </select>
+
+        <button id="addBtn"
+                class="p-3 bg-teal-600 text-white rounded-lg font-semibold w-full">
+          Add
+        </button>
+      </div>
+
+      <!-- ENTRIES LIST -->
+      <h2 class="text-xl font-semibold mb-3 text-gray-700">Entries</h2>
+      <div id="list" class="flex flex-col gap-3"></div>
+    </div>
   </div>
 
 <script>
-  const firebaseConfig = {
-  apiKey: "AIzaSyCdN3uj_E4hvk-acXXaLKZyYyX9Y9Bvm1M",
+const firebaseConfig = {
+  apiKey: "AIzaSyCdN3uJ_E4hvk-acXXaLKzYyXY9YBvm1M",
   authDomain: "budget-app-aa27e.firebaseapp.com",
   projectId: "budget-app-aa27e",
-  storageBucket: "budget-app-aa27e.firebasestorage.app",
+  storageBucket: "budget-app-aa27e.appspot.com",
   messagingSenderId: "657424393046",
   appId: "1:657424393046:web:fd803d19ee302e31e02cf7"
 };
-
 firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
@@ -50,6 +86,7 @@ const db = firebase.firestore();
 document.getElementById("loginBtn").onclick = async () => {
   const emailVal = email.value;
   const passVal = password.value;
+
   try {
     await auth.signInWithEmailAndPassword(emailVal, passVal);
   } catch {
@@ -59,36 +96,71 @@ document.getElementById("loginBtn").onclick = async () => {
 
 auth.onAuthStateChanged(user => {
   if (!user) return;
+
   document.getElementById("auth").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
 
+  loadEntries(user.uid);
+});
+
+function loadEntries(uid) {
   const list = document.getElementById("list");
+
   db.collection("entries")
-    .where("user", "==", user.uid)
+    .where("user", "==", uid)
     .orderBy("time", "desc")
     .onSnapshot(snap => {
+      let balance = 0;
       list.innerHTML = "";
+
       snap.forEach(doc => {
         const d = doc.data();
+
+        // Balance calculation
+        if (d.type === "income") balance += d.amount;
+        else balance -= d.amount;
+
+        // Entry card UI
         list.innerHTML += `
-          <div class="p-2 mb-2 bg-white rounded">
-            ${d.type.toUpperCase()}: $${d.amount} - ${d.note}
+          <div class="bg-white shadow-md rounded-lg p-4 flex justify-between items-center">
+            <div>
+              <p class="font-semibold text-gray-800">${d.note}</p>
+              <p class="text-sm text-gray-500">${d.category} • ${d.type.toUpperCase()}</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="font-bold ${
+                d.type === "income" ? "text-teal-600" : "text-red-500"
+              }">$${d.amount}</span>
+              <button onclick="deleteEntry('${doc.id}')"
+                class="text-red-500 font-bold">✕</button>
+            </div>
           </div>
         `;
       });
+
+      document.getElementById("balance").innerText = "$" + balance.toFixed(2);
     });
-});
+}
 
 document.getElementById("addBtn").onclick = () => {
   const user = auth.currentUser;
+
   db.collection("entries").add({
     user: user.uid,
     amount: Number(amount.value),
     note: note.value,
+    category: category.value,
     type: type.value,
     time: Date.now()
   });
+
+  amount.value = "";
+  note.value = "";
 };
+
+function deleteEntry(id) {
+  db.collection("entries").doc(id).delete();
+}
 </script>
 
 </body>
