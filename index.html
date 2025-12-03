@@ -71,55 +71,10 @@ auth.onAuthStateChanged(user => {
       snap.forEach(doc => {
         const d = doc.data();
         list.innerHTML += `
-          <div>${d.type.toUpperCase()}: $${d.amount} - ${d.note}</div>
+          <div class="p-2 mb-2 bg-white rounded">
+            ${d.type.toUpperCase()}: $${d.amount} - ${d.note}
+          </div>
         `;
-      });
-    });
-});
-
-document.getElementById("addBtn").onclick = () => {
-  const user = auth.currentUser;
-  db.collection("entries").add({
-    user: user.uid,
-    amount: Number(amount.value),
-    note: note.value,
-    type: type.value,
-    time: Date.now()
-  });
-};
-</script>
-};
-firebase.initializeApp(firebaseConfig);
-
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-document.getElementById("loginBtn").onclick = async () => {
-  const email = email.value;
-  const pass = password.value;
-  try {
-    await auth.signInWithEmailAndPassword(email, pass);
-  } catch {
-    await auth.createUserWithEmailAndPassword(email, pass);
-  }
-};
-
-auth.onAuthStateChanged(user => {
-  if (!user) return;
-  document.getElementById("auth").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
-
-  const list = document.getElementById("list");
-  db.collection("entries")
-    .where("user", "==", user.uid)
-    .orderBy("time", "desc")
-    .onSnapshot(snap => {
-      list.innerHTML = "";
-      snap.forEach(doc => {
-        const d = doc.data();
-        list.innerHTML += `<div class="p-2 mb-2 bg-white rounded">
-          ${d.type.toUpperCase()}: $${d.amount} - ${d.note}
-        </div>`;
       });
     });
 });
